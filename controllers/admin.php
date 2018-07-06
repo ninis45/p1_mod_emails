@@ -359,7 +359,9 @@ class Admin extends Admin_Controller {
                             } 
                         break;
                         case 'add':
-                            
+                            $add = array(
+                                'status' => false
+                            );
                             if(!$csv['given_name'] || !$csv['family_name'] || !$csv['full_name'])
                             {
                                 $csv['message'] = 'Faltan algunos campos en el CSV';
@@ -396,11 +398,9 @@ class Admin extends Admin_Controller {
                                 //$csv['icon']    = 'fa fa-ban';
                                 if($user['data']->getName()->getFullName()!=$csv['full_name'])
                                 {
-                                   // $csv['email'] = str_replace(' ','_',$csv['family_name']).'@cobacam.edu.mx';
-                                   // $add = $this->gservice->add_user($csv['email'],$csv['given_name'],$csv['family_name'],$csv['full_name'],$org,'cobacam2018');
-                                
+                                   
                                     $inc = 1;
-                                    //$add = $this->gservice->add_user($csv['email'],$csv['given_name'],$csv['family_name'],$csv['full_name'],$org,'cobacam2018');
+                                    
                                     $add = array('status'=>false);
                                     while(!$add['status'])
                                     {
@@ -417,13 +417,38 @@ class Admin extends Admin_Controller {
                                     $csv['status']= $add['status'];
                                     
                                     $csv['message'] = $add['message'];
-                                    $csv['icon']    = 'fa fa-warning';
+                                    $csv['icon']    = 'fa fa-exchange';
                                 }else
                                 {
                                     $csv['message'] = 'Correo ya existe';
                                     $csv['icon']    = 'fa fa-user';
                                 }
                             }     
+                            //Insertamos local
+                            if($add['status'])
+                            {
+                                $data = array(
+                                    'updated_on' => now(),
+                                    'created_on' => now(),
+                                    'given_name'  => $csv['given_name'],
+                                    'family_name' => $csv['family_name'],
+                                    'full_name'   => $csv['full_name'],
+                                    'org_path'    => $csv['org_path'],
+                                    'email'       => $csv['email'],
+                                    'syncronize'  => 1
+                                );
+                               
+                                  if($csv['idalum'])
+                                  {
+                                       $data['table_id'] = $csv['idalum'];
+                                       $data['table']    = 'alumnos';
+                                  }
+                                    
+                                   
+                                    $this->email_m->insert($data);
+                                   
+                                
+                            }
                         break;
                         
                         case 'check':
@@ -894,53 +919,74 @@ class Admin extends Admin_Controller {
          exit();
         
     }
-    public function alumnos($limit=200,$init=0)
+    //Generar csv para correos de los alumnos
+    public function generate($limit=200,$init=0)
     {
-         $centro = 'EL NARANJO';
+         //$centro = 'EL NARANJO';
          $this->load->helper('download');
 	 	 $this->load->library('format');
-         $alumnos = $this->db->select('nombre ,apellido_paterno,apellido_materno,matricula,idalum,matricula,\'/Alumnos/EMSaD 21 - El Naranjo\' AS org_path')
-                        ->where('escuela',$centro)
+         $centro = $this->input->post('centro');
+         $base_where = array(
+            'grado IN(2,4)' => NULL
+         );
+         
+         if($centro)
+         {
+            $base_where['escuela'] = $centro;
+         }
+         
+         $alumnos = $this->db->select('escuela,nombre ,apellido_paterno,apellido_materno,matricula,idalum,matricula,\''.$this->input->post('org_path').'\' AS org_path')
+                        //->where('escuela',$this->input->get('escuela'))
+                        ->where($base_where)
                         ->limit($limit,$init)
                         ->order_by('nombre,apellido_paterno,apellido_materno')
                         ->get('alumnos')->result_array();
-                        
-         $inc = 1;
-         foreach($alumnos AS &$alumno)
+         if($_POST)
          {
-           
-            if($alumno['nombre']){
-                /*$name  = explode(' ',trim($alumno['nombre'])); */
-                $alumno['family_name'] = trim($alumno['apellido_paterno']).' '.trim($alumno['apellido_materno']);
-                $alumno['given_name']= trim($alumno['nombre']);
-                
-                $alumno['full_name']= trim($alumno['nombre']).' '.trim($alumno['apellido_paterno']).' '.trim($alumno['apellido_materno']);
-               /// echo $alumno['full_name'].'<br/>';
-                $alumno['email'] = 'cb'.str_replace('-','_',$alumno['matricula']).'@cobacam.edu.mx'; ///strtolower(replace_string($name[count($name)-1]).'_'.replace_string($alumno['apellido_paterno']).'@cobacam.edu.mx');
-                
-                
-                //$alumno['email'] = replace_string($alumno['email']);
-                $alumno['active'] = 1; 
-                //echo $inc.' - '.$alumno['email'].'-'.$alumno['full_name'].'<br/>';
-                
-               if(!$this->db->where(array('full_name'=>trim($alumno['full_name']),'org_path'=>'/Alumnos/EMSaD 21 - El Naranjo'))
-                            ->set(array(
-                               'table' => 'alumnos',
-                               'table_id' => $alumno['idalum']
-                            ))
-                            ->update('emails'))
-                {
-                    echo 'No actualizado: '.$alumno['idalumm'].' - '.$alumno['full_name'].'<br/>';
+             
+             $inc = 1;
+             foreach($alumnos AS &$alumno)
+             {
+               
+                if($alumno['nombre']){
+                    $name  = explode(' ',trim($alumno['nombre'])); 
+                    $alumno['family_name'] = trim($alumno['apellido_paterno']).' '.trim($alumno['apellido_materno']);
+                    $alumno['given_name']= trim($alumno['nombre']);
+                    
+                    $alumno['full_name']= trim($alumno['nombre']).' '.trim($alumno['apellido_paterno']).' '.trim($alumno['apellido_materno']);
+                   /// echo $alumno['full_name'].'<br/>';
+                    ///$alumno['email'] = 'cb'.str_replace('-','_',$alumno['matricula']).'@cobacam.edu.mx'; 
+                    $alumno['email'] = strtolower(replace_string($name[count($name)-1]).'_'.replace_string($alumno['apellido_paterno']).'@cobacam.edu.mx');
+                    
+                    
+                    //$alumno['email'] = replace_string($alumno['email']);
+                    $alumno['active'] = 1; 
+                    //echo $inc.' - '.$alumno['email'].'-'.$alumno['full_name'].'<br/>';
+                    
+                   if(!$this->db->where(array('full_name'=>trim($alumno['full_name']),'org_path'=>$this->input->post('org_path')))
+                                ->set(array(
+                                   'table' => 'alumnos',
+                                   'table_id' => $alumno['idalum']
+                                ))
+                                ->update('emails'))
+                    {
+                        echo 'No actualizado: '.$alumno['idalumm'].' - '.$alumno['full_name'].'<br/>';
+                    }
+                    $inc++;
                 }
-                $inc++;
-            }
-            unset($alumno['nombre'],$alumno['apellido_paterno'],$alumno['apellido_materno']);
-         }       
-         exit();  
-         $file_name = str_replace(' ','_',$centro);
-         $file_name = str_replace('/','',$file_name);               
-         force_download('prep_'.$file_name.'.csv',$this->format->factory($alumnos)->to_csv());
-         exit();
+                unset($alumno['nombre'],$alumno['apellido_paterno'],$alumno['apellido_materno']);
+             }       
+             //exit();  
+             $file_name = str_replace(' ','_',$centro);
+             $file_name = str_replace('/','',$file_name);               
+             force_download('prep_'.$file_name.'_'.$init.'_'.($init+$limit).'.csv',$this->format->factory($alumnos)->to_csv());
+             redirect('admin/emails/generate');
+             //exit();
+         }
+          $this->template
+                ->set('centros',array_for_select($alumnos,'escuela','escuela'))
+                 ->set('orgs',$this->org_m->dropdown('org_path','org_path'))
+			   ->build('admin/form_generate');
     }
     function lectura()
     {

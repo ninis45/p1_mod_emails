@@ -283,7 +283,9 @@ background:  #efefef;
                                         <span ng-if="user.org_path"> | {{user.org_path}}</span>
                                         
                                         
-                                        <i class="fa fa-check text-success" ng-if="user.status"></i> <i class="fa {{user.icon}} text-danger" ng-if="!user.status" title="{{user.message}}"></i></li>
+                                        <i class="fa fa-check text-success" ng-if="user.status"></i> 
+                                        <i class="fa {{user.icon}} text-danger" ng-if="!user.status" title="{{user.message}}"></i>
+                                        </li>
                                     </ul>
                                 </div>
                                 
