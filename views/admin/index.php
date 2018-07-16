@@ -271,10 +271,19 @@ background:  #efefef;
                                     
                                     </div>
                                 </div>
-                                <div class="divider">
-                                    <input type="text" class="form-control" ng-model="search_result" />
+                                <div class="divider row">
+                                    <div class="col-xs-6"><input type="text" class="form-control" ng-model="search_result.email" /></div>
+                                    <div class="col-xs-6">
+                                        <select ng-model="search_result.icon" class="form-control col-xs-6">
+                                            <option value="">Todos<option>
+                                            <option value="fa-warning">False</option>
+                                            <option value="fa-check">True</option>
+                                        </select>
+                                    </div>
+                                    
+                                    
                                 </div>
-                                <div class="extra">Total registros: {{users_result.length}}</div>
+                                <div class="extra">Total registros: {{(users_result|filter:search_result).length}}</div>
                                 <div class="well" data-slim-scroll data-scroll-height="200px">
                                     
                                     <ul class="list-unstyled list-users-li">

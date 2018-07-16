@@ -427,6 +427,7 @@ class Admin extends Admin_Controller {
                             //Insertamos local
                             if($add['status'])
                             {
+                                $csv['icon']    = 'fa fa-check';
                                 $data = array(
                                     'updated_on' => now(),
                                     'created_on' => now(),
@@ -456,6 +457,7 @@ class Admin extends Admin_Controller {
                             {
                                 
                                 $csv['status']= true;
+                                $csv['icon']= 'fa-check';
                                 $csv['org_path'] = $user['data']->getOrgUnitPath();
                                 
                                 if($user['data']->getName()->getFullName()!= $csv['full_name'])
@@ -594,65 +596,7 @@ class Admin extends Admin_Controller {
             $result['status'] = true;
             $result['data']   = $adds;
         }
-        /*exit();
-            $action   = $this->input->post('action');
-                     
-            $org_path = $this->input->post('org_path');
-            
-            if($org_path){
-            
-            
-                
-                $salt = false;
-                $next_page = 'next';
-                $updates = 0;
-                $adds    = array();
-                while($next_page){
-                    
-                    $next_page = $next_page == 'next'?'':$next_page;
-                    
-                    $users   = $this->gservice->get_list_users($org_path,$next_page);
-                    
-                    
-                    foreach($users['data'] as $user)
-                    {
-                       
-                        $data = array(
-                            'updated_on' => now(),
-                            'given_name'  => $user->getName()->getGivenName(),
-                            'family_name' => $user->getName()->getFamilyName(),
-                            'full_name'   => $user->getName()->getFullName(),
-                            'org_path'    => $user->getOrgUnitPath(),
-                            'syncronize'  => 1
-                        );
-                        if($user_s = $this->email_m->get_by('email',$user->getPrimaryEmail()))
-                        {
-                          
-                            
-                            $this->email_m->update($user_s->id,$data);
-                            $updates++;
-                        }
-                        else
-                        {
-                            $data['email']      = $user->getPrimaryEmail();
-                            $data['created_on'] = now();
-                            
-                           
-                            $this->email_m->insert($data);
-                            $adds[] = $data;
-                        }
-                    }
-                    $next_page = $users['data']->getNextPageToken();  
-                } 
-                
-                
-            
-               
-            }   
-            $result['message'] = sprintf(lang('email:download'),count($adds),$updates);
-            
-            $result['status'] = true;
-            $result['data']   = $adds;*/
+       
             return $this->template->build_json($result);  
     }
     function index()

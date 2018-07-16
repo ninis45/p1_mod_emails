@@ -147,6 +147,9 @@
     {
         $scope.users_result = [];
         $scope.action='check';
+        $scope.search_result={
+            icon:''
+        }
         $scope.cancel = function()
         {
              $uibModalInstance.dismiss("cancel");
