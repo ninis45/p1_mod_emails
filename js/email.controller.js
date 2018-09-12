@@ -2,14 +2,15 @@
     'use strict';
     
     angular.module('app.emails')
-    .controller('InputCtrl',['$scope','$http','$rootScope','$sce','$uibModalInstance','users','user',InputCtrl])
+    .controller('InputCtrl',['$scope','$http','$rootScope','$sce','$uibModalInstance','$window','users','user',InputCtrl])
     //.controller('InputSyncron',['$scope','$http','$uibModal','logger',InputSyncron])
     .controller('InputModalDownload',['$scope','$http','$uibModalInstance','logger',InputModalDownload])
     .controller('ModalUserCtrl',['$scope','$http','$uibModalInstance','logger','user',ModalUserCtrl])
     
     .controller('ModalOrgCtrl',['$scope','$http','$uibModalInstance','org_active',ModalOrgCtrl])
     .controller('InputModalUpload',['$scope','$http','$uibModalInstance','$cookies','$timeout','logger','Upload', InputModalUpload])
-    .controller('IndexCtrl',['$scope','$http','$uibModal',IndexCtrl]);
+    .controller('IndexCtrl',['$scope','$http','$uibModal',IndexCtrl])
+    .controller('SolicitudIndexCtrl',['$rootScope','$scope','$http','$uibModal',SolicitudIndexCtrl]);
     
     function InputModalDownload($scope,$http,$uibModalInstance,logger)
     {
@@ -74,12 +75,13 @@
             });
         }
     }
-    function InputCtrl($scope,$http,$rootScope,$sce,$uibModalInstance,users,user)
+    function InputCtrl($scope,$http,$rootScope,$sce,$uibModalInstance,$window,users,user)
     {
         $scope.status  = false;
         $scope.message = false;
         
         $scope.form = user?user:{};
+        
         /*$scope.search = function(search)
         {
             $scope.dispose = true;
@@ -120,6 +122,11 @@
                         if(!user)
                             users.push(result.data);
                         ///Agregar nuevo registro a la organizacion visible
+                        
+                        
+                        download(result.data.id?result.data.id:user.id);
+                        
+                        
                     }
                     
                     $uibModalInstance.close();
@@ -130,6 +137,47 @@
         }
         $scope.valid_form = function () {
             return $scope.frm.$valid;
+        }
+        
+        $scope.$watch('form.table_id',function(n,o){
+            
+            if(!n) return false;
+            //'http://localhost:3623/api/ws'+$scope.form.table+'/'+n
+            
+            var  params={
+                headers:{
+                    //'Origin':'http://127.0.0.1:8036/',
+                    //'cache':false,
+                    //'Access-Control-Allow-Origin':'*',
+                    'Authorization':'Basic Y29iYWNhbToxcHNrMjM1NQ==',
+                    //'Access-Control-Headers': 'Content-Type,Authorization',
+                    'Content-Type': 'application/json',
+                   
+                }
+                
+            };
+            //$scope.form.table = 'centros';
+            //n = '40';
+            $http.get('https://rk.cobacam.edu.mx/api/ws'+$scope.form.table+'/'+n+'?type=json',params).then(function(response){
+                
+                var result = response.data;
+                
+                $scope.form.data = JSON.stringify(result);
+            });
+            
+        });
+        
+        function download (id)
+        {
+             var oficio = prompt('Inserte el número de Oficio si desea imprimir el Acuse');
+             
+             if(!oficio)
+             {
+               
+                return false;
+             }
+             $window.open(SITE_URL+'admin/emails/acuse/?id='+id+'&oficio='+oficio); 
+
         }
     }
     function ModalOrgCtrl($scope,$http,$uibModalInstance,org_active)
@@ -148,7 +196,7 @@
         $scope.users_result = [];
         $scope.action='check';
         $scope.search_result={
-            icon:''
+            //icon:''
         }
         $scope.cancel = function()
         {
@@ -156,10 +204,10 @@
         }
         $scope.upload_file = function(file)
         {
-            
+            if(!file) return false;
             $scope.dispose = true;
             
-            if(!file) return false;
+           
             
             file.upload = Upload.upload({
               url: SITE_URL+'admin/emails/upload',
@@ -529,5 +577,45 @@
                       });
        }   
     }
-    
+    function SolicitudIndexCtrl($rootScope,$scope,$http,$uibModal)
+    {
+         $scope.recibidos    = recibidos?recibidos:[];
+         $scope.rechazados   = rechazados?rechazados:[];
+         $scope.validados    = validados?validados:[];
+
+
+        $scope.changeStatus = function(recibido)
+        {
+           var modalInstance = $uibModal.open({
+                            animation: $scope.animationsEnabled,
+                            templateUrl: 'ModalStatus.html',
+                            //controller: 'ModalUserCtrl',
+                            controller:'InputModalStatus',
+                            resolve: {
+                                 recibido: function () {
+                                    return recibido;
+                                 }
+                            }
+                      });
+
+        }
+
+        $scope.details = function(solicitud)
+        {
+           var modalInstance = $uibModal.open({
+                            animation: $scope.animationsEnabled,
+                            templateUrl: 'details.html',
+                            //controller: 'ModalUserCtrl',
+                            controller:'InputModalDetails',
+                            resolve: {
+                                 solicitud: function () {
+                                    return solicitud;
+                                 }
+                            }
+                      });
+
+        }
+
+    }
+
 })();

@@ -7,7 +7,7 @@ class Admin extends Admin_Controller {
         
         $this->load->library('GService');
         $this->load->model(array('email_m','org_m'));
-        $this->lang->load('email');
+        $this->lang->load(array('email','calendar'));
         $this->config->load('files/files');
         $this->_path = FCPATH.rtrim($this->config->item('files:path'), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
     }
@@ -320,7 +320,8 @@ class Admin extends Admin_Controller {
                 $csv['org_path']= utf8_encode($csv['org_path']);
                 if($csv['active']!=1){
                         $csv['message'] = 'Inactivo en archivo CSV';
-                        $csv['icon']    = 'fa fa-warning';
+                        $csv['icon']    = 'fa-ban';
+                        
                         continue;
                        
                 }
@@ -344,6 +345,39 @@ class Admin extends Admin_Controller {
                                     if($update['status'])
                                     {
                                         $csv['status'] = true;
+                                        
+                                        //Acutalizamos local
+                                        
+                                        $data = array(
+                                            'updated_on' => now(),
+                                            //'created_on' => now(),
+                                            'given_name'  => $csv['given_name'],
+                                            'family_name' => $csv['family_name'],
+                                            'full_name'   => $csv['full_name'],
+                                            'org_path'    => $csv['org_path'],
+                                            'email'       => $csv['email'],
+                                            'syncronize'  => 1
+                                        );
+                                       
+                                          if($csv['table_id'])
+                                          {
+                                               $data['table_id'] = $csv['table_id'];
+                                               $data['table']    = 'alumnos';
+                                               
+                                               //Verificar conflictos con la tabla empleados
+                                               if($prep = $this->email_m->get_by('table_id',$data['table_id']))
+                                               {
+                                                   $this->email_m->update($prep->id,$data);
+                                               }
+                                               else
+                                               {
+                                                    $data['created_on'] = now();
+                                                    $this->email_m->insert($data);
+                                               }
+                                          }
+                                    
+                                   
+                                       
                                     }
                                     else
                                         $csv['message'] = $updated['message']; 
@@ -389,7 +423,7 @@ class Admin extends Admin_Controller {
                                 
                                 if(!$csv['status'])
                                 {
-                                    $csv['icon']    = 'fa fa-warning';
+                                    $csv['icon']    = 'fa-warning';
                                 }
                                 $csv['message'] = $add['message'];
                             }
@@ -400,11 +434,11 @@ class Admin extends Admin_Controller {
                                 {
                                    
                                     $inc = 1;
-                                    
+                                    $new_email = explode('@',$csv['email']);
                                     $add = array('status'=>false);
                                     while(!$add['status'])
                                     {
-                                        $new_email = explode('@',$csv['email']);
+                                        
                                     
                                         $csv['email'] = $new_email[0].$inc.'@'.$new_email[1];
                                         
@@ -417,11 +451,12 @@ class Admin extends Admin_Controller {
                                     $csv['status']= $add['status'];
                                     
                                     $csv['message'] = $add['message'];
-                                    $csv['icon']    = 'fa fa-exchange';
+                                    $csv['icon']    = 'fa-exchange';///No sirve al parecer
                                 }else
                                 {
+                                    $csv['status'] = false;
                                     $csv['message'] = 'Correo ya existe';
-                                    $csv['icon']    = 'fa fa-user';
+                                    $csv['icon']    = 'fa-user';
                                 }
                             }     
                             //Insertamos local
@@ -439,9 +474,9 @@ class Admin extends Admin_Controller {
                                     'syncronize'  => 1
                                 );
                                
-                                  if($csv['idalum'])
+                                  if($csv['table_id'])
                                   {
-                                       $data['table_id'] = $csv['idalum'];
+                                       $data['table_id'] = $csv['table_id'];
                                        $data['table']    = 'alumnos';
                                   }
                                     
@@ -464,13 +499,13 @@ class Admin extends Admin_Controller {
                                 {
                                     $csv['status']= false;
                                     $csv['message'] = 'El nombre no corresponde con el usuario';
-                                    $csv['icon']    = 'fa fa-user';
+                                    $csv['icon']    = 'fa-user';
                                 }
                             }
                             else{
-                            
+                                $csv['status']  = $user['status'];
                                 $csv['message'] = $user['message'];
-                                $csv['icon']    = 'fa fa-ban';
+                                $csv['icon']    = 'fa-ban';
                             }
                             
                         break;
@@ -652,8 +687,8 @@ class Admin extends Admin_Controller {
                     );
                 }
                 $result['next_page'] = $result_users['data']->getNextPageToken();
-                $result['data'] = $list_users;
-                $result['status'] = true;
+                $result['data']      = $list_users;
+                $result['status']    = true;
                 
                 return $this->template->build_json($result);
             }
@@ -671,29 +706,43 @@ class Admin extends Admin_Controller {
          
          $inc=1;
         
-         
-         foreach($orgs as $org)
-         {
-            if(!array_key_exists($org->getOrgUnitPath(),$list_orgs))
-            {
-                $child_orgs = $this->gservice->get_list_orgs($org->getOrgUnitPath());
-                
-                $list_orgs[$org->getOrgUnitPath()]= array(
-                    'orgUnithPath' => $org->getOrgUnitPath(),
-                    'collapsed' => true,
-                    'name'  => $org->getName(),
-                    ///'orgs'  => $this->_append_list(),
-                    //'users' => array()
-                );
-                if(count($child_orgs)>0)
+         if($orgs){
+             foreach($orgs as $org)
+             {
+                if(!array_key_exists($org->getOrgUnitPath(),$list_orgs))
                 {
+                    $child_orgs = $this->gservice->get_list_orgs($org->getOrgUnitPath());
                     
-                    $list_orgs[$org->getOrgUnitPath()]['orgs'] = $this->_append_list($child_orgs);
+                    $list_orgs[$org->getOrgUnitPath()]= array(
+                        'orgUnithPath' => $org->getOrgUnitPath(),
+                        'collapsed' => true,
+                        'name'  => $org->getName(),
+                        ///'orgs'  => $this->_append_list(),
+                        //'users' => array()
+                    );
+                    if(count($child_orgs)>0)
+                    {
+                        
+                        $list_orgs[$org->getOrgUnitPath()]['orgs'] = $this->_append_list($child_orgs);
+                    }
                 }
-            }
+             }
+         
          }
-         
-         
+         else
+         {
+              $orgs_local  = ci()->db->where('active',1)->get('email_orgs')->result();
+              
+              
+              foreach($orgs_local as $org)
+              {
+                   $list_orgs[] = array(
+                   
+                    'name' => $org->name,
+                    'orgUnithPath' => $org->org_path,
+                   );
+              }
+         }
          if(count($orgs_path)>0)
          {
              $users_local = $this->email_m->where_in('emails.org_path',$orgs_path)
@@ -701,14 +750,14 @@ class Admin extends Admin_Controller {
                             ->get_all();
          }
         
-                            
+             
         
          
          $this->input->is_ajax_request()?
             $this->template->build_json($result):            
             $this->template->title($this->module_details['name'])
                    // ->set('orgs_local',$orgs_path)
-                    ->append_metadata('<script type="text/javascript">var users_local='.json_encode(isset($users_local)?$users_local:array()).',  lista_r='.json_encode($list_orgs).';</script>')
+                    ->append_metadata('<script type="text/javascript">var  users_local='.json_encode(isset($users_local)?$users_local:array()).',  lista_r='.json_encode($list_orgs).';</script>')
                      ->append_js('module::email.controller.js')
                     ->build('admin/index');
     }
@@ -736,6 +785,7 @@ class Admin extends Admin_Controller {
     }
     function edit($id=0)
     {
+       
         $result = array(
             'status'  => false,
             'data'    => array(),
@@ -745,27 +795,37 @@ class Admin extends Admin_Controller {
         if($_POST)
         {
             $input = $this->input->post();
-          
-            $update_user =  $this->gservice->update_user($input['email'],$input['given_name'],$input['family_name'],$input['full_name'],$input['org_path'],$password,isset($input['change'])?$input['change']:false);
-            if($update_user['status'])
-            {
-                
-                //Actualizamos localmente
-                 $update = array(
+            $update = array(
                            
                             'given_name'  => $this->input->post('given_name'),
                             'family_name' => $this->input->post('family_name'),
                             'full_name'   => $this->input->post('full_name'),
                             'org_path'    => $this->input->post('org_path'),
+                            'table'    => $this->input->post('table'),
+                            'table_id'    => $this->input->post('table_id'),
+                            'data'        => $this->input->post('data'),
                             'syncronize'  => 1,
                             
                             'updated_on'  => now()
                              
-                 );
-                $this->email_m->update($id,$update);
+            );
+            
+            
+            if($this->email_m->update($id,$update))
+            {
                 
-                
+                //Actualizamos localmente
+                $update_user =  $this->gservice->update_user($input['email'],$input['given_name'],$input['family_name'],$input['full_name'],$input['org_path'],$password,isset($input['change'])?$input['change']:false);
                 $result['status']  = true;
+                if(!$update_user['status'])
+                {
+                    $this->email_m->update($id,array('syncronize'=>0));
+                    $result = $update_user;
+                    
+                }
+                
+                
+                
                 $result['message'] = lang('email:save_success');
                 $result['data']    = $update;
                 if($password &&  $input['email_altern'])
@@ -868,46 +928,87 @@ class Admin extends Admin_Controller {
     {
          //$centro = 'EL NARANJO';
          $this->load->helper('download');
-	 	 $this->load->library('format');
+	 	 $this->load->library(array(
+            'format'
+            ,'curl'    
+        ));
+         $data = array();
          $centro = $this->input->post('centro');
+         $grado  = $this->input->post('grado');
          $base_where = array(
-            'grado IN(2,4)' => NULL
+            //'grado IN(2,4)' => NULL
          );
          
          if($centro)
          {
             $base_where['escuela'] = $centro;
          }
+         $curl = curl_init();
          
-         $alumnos = $this->db->select('escuela,nombre ,apellido_paterno,apellido_materno,matricula,idalum,matricula,\''.$this->input->post('org_path').'\' AS org_path')
-                        //->where('escuela',$this->input->get('escuela'))
+         $client  = base64_encode('cobacam:1psk2355');
+         
+         $header = array(
+            //'Content-Type: application/json',
+           // 'Accept: application/json',
+            //'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Basic '. $client
+         );
+        /* curl_setopt($curl, CURLOPT_HEADER, false);  
+         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);  
+         curl_setopt($curl, CURLOPT_RETURNTRANSFER,true);
+         curl_setopt($curl, CURLOPT_URL, 'https://rk.cobacam.edu.mx/api/wsalumnos?type=json');*/
+           $result = $this->curl->set_user('cobacam','1psk2355')->get('http://www.cobacam.edu.mx:8075/api/wsalumnos?type=json'); //curl_exec ($curl); 
+           
+           //exit($result);
+          
+         //$result = $curl->get('http://localhost:3623/api/wsalumnos?type=json');
+        
+    
+         
+         
+         $alumnos = json_decode($result);/*$this->db->select('escuela,nombre ,apellido_paterno,apellido_materno,matricula,idalum,matricula,\''.$this->input->post('org_path').'\' AS org_path')
+                       
                         ->where($base_where)
                         ->limit($limit,$init)
                         ->order_by('nombre,apellido_paterno,apellido_materno')
-                        ->get('alumnos')->result_array();
+                        ->get('alumnos')->result();*/
          if($_POST)
          {
-             
+            // print_r($alumnos);
              $inc = 1;
+             $grados = $grado?explode(',',$grado):array();
              foreach($alumnos AS &$alumno)
              {
-               
-                if($alumno['nombre']){
-                    $name  = explode(' ',trim($alumno['nombre'])); 
-                    $alumno['family_name'] = trim($alumno['apellido_paterno']).' '.trim($alumno['apellido_materno']);
-                    $alumno['given_name']= trim($alumno['nombre']);
+                //$alumno = (array)$alumno;
+                
+                if($centro!=$alumno->escuela) continue;
+                
+                if(count($grados)>0)
+                {
+                    if(!in_array($alumno->grado,$grados))
+                    {
+                        continue;
+                    }
+                }
+                if($alumno->nombre){
+                    $name  = explode(' ',trim($alumno->nombre)); 
+                   
+                    $add['family_name'] = trim($alumno->apellido_paterno).' '.trim($alumno->apellido_materno);
+                    $add['given_name']= trim($alumno->nombre);
                     
-                    $alumno['full_name']= trim($alumno['nombre']).' '.trim($alumno['apellido_paterno']).' '.trim($alumno['apellido_materno']);
+                    $add['full_name']= trim($alumno->nombre).' '.trim($alumno->apellido_paterno).' '.trim($alumno->apellido_materno);
                    /// echo $alumno['full_name'].'<br/>';
                     ///$alumno['email'] = 'cb'.str_replace('-','_',$alumno['matricula']).'@cobacam.edu.mx'; 
-                    $alumno['email'] = strtolower(replace_string($name[count($name)-1]).'_'.replace_string($alumno['apellido_paterno']).'@cobacam.edu.mx');
-                    
+                    $add['email'] = strtolower(replace_string($name[count($name)-1]).'_'.replace_string($alumno->apellido_paterno).'@cobacam.edu.mx');
+                    $add['table_id'] = $alumno->id_alum;
                     
                     //$alumno['email'] = replace_string($alumno['email']);
-                    $alumno['active'] = 1; 
+                    $add['active'] = 1; 
+                    $add['org_path'] = utf8_decode($this->input->post('org_path'));
+                    
                     //echo $inc.' - '.$alumno['email'].'-'.$alumno['full_name'].'<br/>';
                     
-                   if(!$this->db->where(array('full_name'=>trim($alumno['full_name']),'org_path'=>$this->input->post('org_path')))
+                   /*if(!$this->db->where(array('full_name'=>trim($alumno['full_name']),'org_path'=>$this->input->post('org_path')))
                                 ->set(array(
                                    'table' => 'alumnos',
                                    'table_id' => $alumno['idalum']
@@ -915,17 +1016,21 @@ class Admin extends Admin_Controller {
                                 ->update('emails'))
                     {
                         echo 'No actualizado: '.$alumno['idalumm'].' - '.$alumno['full_name'].'<br/>';
-                    }
+                    }*/
+                    $data[] =  $add;
                     $inc++;
                 }
-                unset($alumno['nombre'],$alumno['apellido_paterno'],$alumno['apellido_materno']);
+               // unset($alumno->nombre,$alumno->apellido_paterno->,$alumno->apellido_materno);
              }       
              //exit();  
+             
+            
              $file_name = str_replace(' ','_',$centro);
              $file_name = str_replace('/','',$file_name);               
-             force_download('prep_'.$file_name.'_'.$init.'_'.($init+$limit).'.csv',$this->format->factory($alumnos)->to_csv());
-             redirect('admin/emails/generate');
-             //exit();
+             force_download('prep_'.$file_name.'_'.$init.'_'.($init+$limit).'.csv',$this->format->factory($data)->to_csv());
+             //print_r((array)$alumnos);
+             //redirect('admin/emails/generate');
+             exit();
          }
           $this->template
                 ->set('centros',array_for_select($alumnos,'escuela','escuela'))
@@ -937,7 +1042,63 @@ class Admin extends Admin_Controller {
         $this->template->set_layout(false)
 			->build('admin/form_lectura');
     }
-    
+    public function  acuse($id=0)
+    {
+        $this->load->library('parser');
+        $this->load->model('templates/email_templates_m');
+         
+        $id     = $id?$id:$this->input->get('id');
+        $oficio = $this->input->get('oficio');
+        
+        $data = $this->email_m->get($id) OR show_404();
+        
+        $org  = $this->org_m->get_by('org_path',$data->org_path); 
+       
+       // $email = $data->email;
+        $email = $data->email;
+        $nombre= $data->full_name;
+        $anio = strftime('%Y');
+        //$plantel = explode('/',$data->org_path);  // devuelve "cde" 
+        //$plantel  =  str_replace('/','',$plantel[count($plantel)-1]);
+        $fecha= 'San Francisco de Campeche, Campeche, '.strftime("%#d").' de '.month_long(date('m')).' de '.$anio;
+       
+        $output = '';
+        $doc = 'acuse_correo';
+        ini_set('max_execution_time', 300);
+        $this->load->library(array('pdf'));
+        $html2pdf = new HTML2PDF('P', 'A4', 'es');
+        ob_clean();
+        
+        if($org && $org->template)
+            $email_template = (array)$this->email_templates_m->get_by('slug',$org->template);
+        else
+        {
+            $this->session->set_flashdata('error',lang('email:not_found_template'));
+            redirect('admin/emails');
+        }
+        
+         $output = $this->parser->parse_string($email_template['body'],array('fecha'=>$fecha,
+                      'nombre'=>$nombre,
+                      'email'=>$email,
+                      'anio'=>$anio,
+                      //'plantel' => $plantel,
+                      'oficio'  => $oficio,
+                      'org_path' => $data->org_path,
+                      'data'    => json_decode($data->data)
+                ),true);
+         
+        /*$output=$this->template->set_layout(false)
+            ->enable_parser(true)
+            ->build('templates/'.$doc,
+                array('fecha'=>$fecha,
+                      'nombre'=>$nombre,
+                      'email'=>$email,
+                      'anio'=>$anio,
+                      'plantel'=>$plantel
+                ),true);*/
+        $html2pdf->writeHTML($output);
+        $html2pdf->Output($doc.'_'.now().'.pdf','I');
+    }
     
     
  }
