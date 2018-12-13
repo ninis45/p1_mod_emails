@@ -170,6 +170,8 @@ class Admin extends Admin_Controller {
                             'family_name' => $this->input->post('family_name'),
                             'full_name'   => $this->input->post('full_name'),
                             'org_path'    => $this->input->post('org_path'),
+                            'table'       => $this->input->post('table'),
+                            'table_id'    => $this->input->post('table_id'),
                             'syncronize'  => 1,
                             'created_on'  => now(),
                             'updated_on'  => now()
@@ -350,7 +352,7 @@ class Admin extends Admin_Controller {
                                         
                                         $data = array(
                                             'updated_on' => now(),
-                                            //'created_on' => now(),
+                                           
                                             'given_name'  => $csv['given_name'],
                                             'family_name' => $csv['family_name'],
                                             'full_name'   => $csv['full_name'],
@@ -482,6 +484,7 @@ class Admin extends Admin_Controller {
                                     
                                    
                                     $this->email_m->insert($data);
+                              
                                    
                                 
                             }
@@ -800,7 +803,7 @@ class Admin extends Admin_Controller {
                             'family_name' => $this->input->post('family_name'),
                             'full_name'   => $this->input->post('full_name'),
                             'org_path'    => $this->input->post('org_path'),
-                            'table'    => $this->input->post('table'),
+                            'table'       => $this->input->post('table'),
                             'table_id'    => $this->input->post('table_id'),
                             'data'        => $this->input->post('data'),
                             'syncronize'  => 1,
